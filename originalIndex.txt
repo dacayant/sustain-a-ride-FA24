@@ -1,0 +1,335 @@
+// import express from 'express';
+// import mysql from 'mysql2';
+// import cors from 'cors';
+// import cookieParser from 'cookie-parser';
+
+
+// // Initialize Express app
+// const app = express();
+// app.use(cors());
+// app.use(express.json()); // Parse JSON bodies
+// app.use(cookieParser()); // For parsing cookies
+
+
+// // MySQL connection configuration
+// const db = mysql.createConnection({
+//   host: 'autorack.proxy.rlwy.net',  // Public MySQL host
+//   user: 'root',                     // MySQL username
+//   password: 'fZOXLqIajMiMnvRTgoQPuPbooCUjdVtm', // MySQL password
+//   database: 'railway',              // MySQL database name
+//   port: 55861                       // MySQL port from the public URL
+// });
+
+// // Connect to the database
+// db.connect((err) => {
+//   if (err) {
+//     console.error('Error connecting to MySQL:', err);
+//   } else {
+//     console.log('Connected to MySQL database');
+//   }
+// });
+
+// // Helper function to validate email format
+// const validateEmail = (email) => {
+//   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+//   return emailRegex.test(email);
+// };
+
+// // Helper function to validate username and password length
+// const validateLength = (str, min, max) => {
+//   return str.length >= min && str.length <= max;
+// };
+
+// // User Registration Endpoint
+// app.post('/api/register', (req, res) => {
+//   const { username, email, password } = req.body;
+
+//   // Validate user inputs
+//   if (!validateLength(username, 3, 50)) {
+//     return res.status(400).json({ message: 'Username must be between 3 and 50 characters' });
+//   }
+//   if (!validateEmail(email)) {
+//     return res.status(400).json({ message: 'Invalid email format' });
+//   }
+//   if (!validateLength(password, 8, 100)) {
+//     return res.status(400).json({ message: 'Password must be between 8 and 100 characters' });
+//   }
+
+//   // Check if the user already exists
+//   const checkUserQuery = 'SELECT * FROM users WHERE email = ?';
+//   db.query(checkUserQuery, [email], (err, results) => {
+//     if (err) {
+//       return res.status(500).json({ message: 'Database error', error: err });
+//     }
+
+//     if (results.length > 0) {
+//       return res.status(400).json({ message: 'User already exists' });
+//     }
+
+//     // Insert new user into the database
+//     const insertUserQuery = 'INSERT INTO users (username, email, password) VALUES (?, ?, ?)';
+//     db.query(insertUserQuery, [username, email, password], (err, result) => {
+//       if (err) {
+//         return res.status(500).json({ message: 'Database error', error: err });
+//       }
+//       res.status(200).json({ message: 'User registered successfully' });
+//     });
+//   });
+// });
+
+// // User Login Endpoint
+// app.post('/api/login', (req, res) => {
+//   const { email, password } = req.body;
+
+//   // Validate input fields
+//   if (!validateEmail(email)) {
+//     return res.status(400).json({ message: 'Invalid email format' });
+//   }
+//   if (!validateLength(password, 8, 100)) {
+//     return res.status(400).json({ message: 'Password must be between 8 and 100 characters' });
+//   }
+
+//   // Check if the user exists
+//   const userQuery = 'SELECT * FROM users WHERE email = ?';
+//   db.query(userQuery, [email], (err, results) => {
+//     if (err) {
+//       return res.status(500).json({ message: 'Database error', error: err });
+//     }
+
+//     if (results.length === 0) {
+//       return res.status(400).json({ message: 'User not found' });
+//     }
+
+//     const user = results[0];
+
+//     // Directly compare the plain text password
+//     if (password !== user.password) {
+//       return res.status(400).json({ message: 'Invalid password' });
+//     }
+
+//     // cookie new implementation 9/24
+//     res.cookie('user_session', `${user.id}`, {
+//       httpOnly: true, // Makes the cookie inaccessible to client-side JavaScript (important for security to help prevent XSS attacks)
+//       maxAge: 3600000 // 1 hour
+//     });
+
+//     res.status(200).json({ message: 'Login successful' });
+//   });
+// });
+
+// app.post('/api/logout', (req, res) => {
+//   res.clearCookie('user_session'); // This clears the 'user_session' cookie
+//   res.status(200).json({ message: 'Logout successful' });
+// });
+
+// // Start the server
+// const PORT = process.env.PORT || 5000;
+// app.listen(PORT, () => {
+//   console.log(`Server running on port ${PORT}`);
+// });
+
+
+// /////////////////////////
+import express from 'express';
+import mysql from 'mysql2';
+import cors from 'cors';
+import cookieParser from 'cookie-parser';
+// import { JsonWebTokenError } from 'jsonwebtoken';
+import jwt from 'jsonwebtoken';
+
+// const jwt = require('jsonwebtoken');
+
+
+// Initialize Express app
+const app = express();
+app.use(express.json()); // Parse JSON bodies
+app.use(cookieParser()); // For parsing cookies
+
+// app.use(cors());
+
+app.use(cors({
+  origin: 'http://localhost:3000', // Specify the frontend origin
+  credentials: true               // Allow credentials (cookies, headers, etc.)
+}));
+
+// MySQL connection configuration
+const db = mysql.createConnection({
+  host: 'autorack.proxy.rlwy.net',  // Public MySQL host
+  user: 'root',                     // MySQL username
+  password: 'fZOXLqIajMiMnvRTgoQPuPbooCUjdVtm', // MySQL password
+  database: 'railway',              // MySQL database name
+  port: 55861                       // MySQL port from the public URL
+});
+
+// Connect to the database
+db.connect((err) => {
+  if (err) {
+    console.error('Error connecting to MySQL:', err);
+  } else {
+    console.log('Connected to MySQL database');
+  }
+});
+
+// Helper function to validate email format
+const validateEmail = (email) => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
+
+// Helper function to validate username and password length
+const validateLength = (str, min, max) => {
+  return str.length >= min && str.length <= max;
+};
+
+// User Registration Endpoint
+app.post('/api/register', (req, res) => {
+  const { username, email, password } = req.body;
+
+  // Validate user inputs
+  if (!validateLength(username, 3, 50)) {
+    return res.status(400).json({ message: 'Username must be between 3 and 50 characters' });
+  }
+  if (!validateEmail(email)) {
+    return res.status(400).json({ message: 'Invalid email format' });
+  }
+  if (!validateLength(password, 8, 100)) {
+    return res.status(400).json({ message: 'Password must be between 8 and 100 characters' });
+  }
+
+  // Check if the user already exists
+  const checkUserQuery = 'SELECT * FROM users WHERE email = ?';
+  db.query(checkUserQuery, [email], (err, results) => {
+    if (err) {
+      return res.status(500).json({ message: 'Database error', error: err });
+    }
+
+    if (results.length > 0) {
+      return res.status(400).json({ message: 'User already exists' });
+    }
+
+    // Insert new user into the database
+    const insertUserQuery = 'INSERT INTO users (username, email, password) VALUES (?, ?, ?)';
+    db.query(insertUserQuery, [username, email, password], (err, result) => {
+      if (err) {
+        return res.status(500).json({ message: 'Database error', error: err });
+      }
+      res.status(200).json({ message: 'User registered successfully' });
+    });
+  });
+});
+
+// User Login Endpoint
+app.post('/api/login', (req, res) => {
+  const { email, password } = req.body;
+
+  // Validate input fields
+  if (!validateEmail(email)) {
+    return res.status(400).json({ message: 'Invalid email format' });
+  }
+  if (!validateLength(password, 8, 100)) {
+    return res.status(400).json({ message: 'Password must be between 8 and 100 characters' });
+  }
+
+  // Check if the user exists
+  const userQuery = 'SELECT * FROM users WHERE email = ?';
+  db.query(userQuery, [email], (err, results) => {
+    if (err) {
+      return res.status(500).json({ message: 'Database error', error: err });
+    }
+
+    if (results.length === 0) {
+      return res.status(400).json({ message: 'User not found' });
+    }
+
+    const user = results[0];
+
+    // Directly compare the plain text password
+    if (password !== user.password) {
+      return res.status(400).json({ message: 'Invalid password' });
+    }
+
+    // Set a cookie on successful login
+    // res.cookie('user_session', `${user.id}`, {
+    //   httpOnly: true,        // Makes the cookie inaccessible to client-side JavaScript
+    //   maxAge: 3600000,       // 1 hour expiry
+    //   secure: process.env.NODE_ENV === 'production', // Only send cookie over HTTPS in production
+    //   sameSite: 'Strict',    // Prevent CSRF attacks
+    //   path: '/',             // Cookie valid for the entire app
+    // });
+
+    // res.status(200).json({ message: 'Login successful', username: user.username  });
+
+    // Generate a JWT token
+    const token = jwt.sign({ id: user.id, username: user.username }, 'my_secret_key', {
+      expiresIn: '1h',
+    });
+
+    // Store the JWT in a cookie
+    res.cookie('user_session', token, {
+      httpOnly: true,
+      maxAge: 3600000, // 1 hour
+    });
+
+    // Respond with username to be used in frontend
+    res.status(200).json({
+      message: 'Login successful',
+      username: user.username, // Ensure this matches your DB field for username
+    });
+
+  });
+});
+
+// User Logout Endpoint
+app.post('/api/logout', (req, res) => {
+  // Clear the cookie when user logs out
+  res.clearCookie('user_session', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'Strict',
+    path: '/', // Make sure the cookie cleared is the same path as the one created
+  });
+
+  res.status(200).json({ message: 'Logout successful' });
+});
+
+// authenticate user
+// const authenticateToken = (req, res, next) => {
+//   const token = req.cookies.user_session;
+
+//   if (!token) {
+//     return res.status(401).json({ message: 'Not authenticated' });
+//   }
+
+//   // Verify the token
+//   jwt.verify(token, 'my_secret_key', (err, user) => {
+//     if (err) return res.status(403).json({ message: 'Token is not valid' });
+
+//     req.user = user;
+//     next();
+//   });
+// };
+
+app.get('/api/verifySession', (req, res) => {
+  const token = req.cookies.user_session; // Extract the JWT from the 'user_session' cookie
+
+  if (!token) {
+    return res.status(401).json({ message: 'No session found' });
+  }
+
+  try {
+    // Verify the JWT
+    const decoded = jwt.verify(token, 'my_secret_key'); // Replace with your secret key
+
+    // Respond with the user's username
+    res.status(200).json({ username: decoded.username });
+  } catch (err) {
+    // If token is invalid or expired
+    return res.status(401).json({ message: 'Invalid session' });
+  }
+});
+
+// Start the server
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});

@@ -1,0 +1,18 @@
+
+import mysql from 'mysql2';
+
+const db = mysql.createConnection({
+  host: 'autorack.proxy.rlwy.net',  // Public MySQL host
+  user: 'root',                     // MySQL username
+  password: 'fZOXLqIajMiMnvRTgoQPuPbooCUjdVtm', // MySQL password
+  database: 'railway',              // MySQL database name
+  port: 55861                       // MySQL port from the public URL
+});
+
+db.connect((err) => {
+  if (err) {
+    console.error('Error connecting to MySQL:', err);
+  } else {
+    console.log('Connected to MySQL database');
+  }
+});
